@@ -17,6 +17,7 @@ Run OpenCode in a secure, isolated Docker container with controlled access to yo
 - [Testcontainers Support](#-testcontainers-support)
 - [Troubleshooting](#-troubleshooting)
 - [File Reference](#-file-reference)
+- [Git authentication](#-git-auth)
 
 ## 🔒 Security Features
 
@@ -558,6 +559,10 @@ If OpenCode runs a dangerous command like `rm -rf .`:
 - ✅ **With Docker**: Only affects `/workspace` (your project)
 
 This significantly reduces risk while maintaining full functionality.
+
+## 📁 Git Auth
+
+You may want your OpenCode container to be able to push up it's work with you. To do this, you can create a file called `.git-auth` and add an https token in there for the account you want to use. It will be used to authenticate the container.
 
 ## 📚 Additional Resources
 

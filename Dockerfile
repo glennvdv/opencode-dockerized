@@ -30,6 +30,30 @@ RUN apt-get update && apt-get install -y \
     lsof \
     && rm -rf /var/lib/apt/lists/*
 
+# be ready to authenticate with github
+RUN (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \
+	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
+	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+	&& cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&& sudo mkdir -p -m 755 /etc/apt/sources.list.d \
+	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+	&& sudo apt update \
+	&& sudo apt install gh -y
+
+# install tools for scraping youtube videos
+RUN sudo apt-get install -y yt-dlp ffmpeg
+
+# install godot for game development work
+ENV GODOT_VERSION="4.6.1"
+RUN wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.arm64.zip
+RUN unzip -o Godot_v${GODOT_VERSION}-stable_linux.arm64.zip
+RUN chmod +x Godot_v${GODOT_VERSION}-stable_linux.arm64
+RUN sudo mv Godot_v${GODOT_VERSION}-stable_linux.arm64 /usr/local/bin/godot
+RUN rm -f Godot_v${GODOT_VERSION}-stable_linux.arm64.zip
+# set this for the MCP server
+ENV GODOT_PATH="/usr/local/bin/godot"
+
 # Install Docker CLI only (uses host Docker daemon via mounted socket)
 # We don't need docker-ce (daemon) or containerd.io since we use the host's Docker
 RUN install -m 0755 -d /etc/apt/keyrings && \
@@ -51,6 +75,24 @@ RUN useradd -m -s /bin/bash -u 1000 coder && \
 # Install SDKMAN and Java as coder user
 USER coder
 WORKDIR /home/coder
+
+# authenticate git so it can perform commands right off the bat
+ADD .git-auth .
+RUN gh config set -h github.com git_protocol https
+RUN gh auth login --with-token < .git-auth
+# setup git to use gh for auth
+RUN gh auth setup-git
+
+# clear out the file for security purposes
+RUN rm .git-auth
+
+RUN git config --global --type bool push.autoSetupRemote true
+
+# maybe these can be parameterized at some point
+RUN git config --global user.email "personaaichat@gmail.com" && git config --global user.name "OpenCode-Ryan"
+
+# TODO: would be cool to add in auto-branch detection as well, i.e. start from this branch when you startup
+
 RUN curl -s "https://get.sdkman.io" | bash && \
     bash -c "source /home/coder/.sdkman/bin/sdkman-init.sh && \
     sdk install java ${JAVA_VERSION} && \
@@ -89,6 +131,14 @@ ENV JAVA_HOME="/home/coder/.sdkman/candidates/java/current"
 # ARG OPENCODE_BUILD_TIME is only passed during 'update' to bust cache
 ARG OPENCODE_BUILD_TIME=0
 RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest"
+
+# bundle in the MCP server (if you want to use it)
+RUN mkdir /home/coder/mcp
+RUN git clone https://github.com/Coding-Solo/godot-mcp.git
+RUN mv godot-mcp /home/coder/mcp/godot-mcp
+WORKDIR /home/coder/mcp/godot-mcp
+RUN npm install
+RUN npm run build
 
 # Switch back to root for entrypoint setup
 USER root
