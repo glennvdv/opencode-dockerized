@@ -287,6 +287,11 @@ build_standard_volume_args() {
         VOLUME_ARGS+=(-v "$HOME/.gradle/gradle.properties:/home/coder/.gradle/gradle.properties:ro")
     fi
 
+    # Git configuration (optional) — ensures commits use the host user's name and email
+    if command -v git >/dev/null 2>&1 && [ -f "$HOME/.gitconfig" ]; then
+        VOLUME_ARGS+=(-v "$HOME/.gitconfig:/home/coder/.gitconfig:ro")
+    fi
+
     # NPM configuration (optional)
     if [ -f "$HOME/.npmrc" ]; then
         VOLUME_ARGS+=(-v "$HOME/.npmrc:/home/coder/.npmrc:ro")
