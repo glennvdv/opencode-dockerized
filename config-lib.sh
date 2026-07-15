@@ -256,6 +256,11 @@ build_standard_volume_args() {
         config_warning "OpenCode config directory not found at $HOME/.config/opencode"
     fi
 
+    # OpenCode state directory (TUI preferences, UI state, etc.)  (read-write)
+    if [ -d "$HOME/.local/state/opencode" ]; then
+        VOLUME_ARGS+=(-v "$HOME/.local/state/opencode:/home/coder/.local/state/opencode")
+    fi
+
     # OpenCode data directory (read-write for auth, logs, sessions, storage)
     if [ -d "$HOME/.local/share/opencode" ]; then
         VOLUME_ARGS+=(-v "$HOME/.local/share/opencode:/home/coder/.local/share/opencode")
