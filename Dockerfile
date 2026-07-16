@@ -105,6 +105,7 @@ USER root
 RUN mkdir -p /home/coder/.config/opencode && \
     mkdir -p /home/coder/.config/openspec && \
     mkdir -p /home/coder/.local/share/opencode && \
+    mkdir -p /home/coder/.local/state/opencode && \
     mkdir -p /home/coder/.cache/opencode && \
     mkdir -p /home/coder/.cache/oh-my-opencode && \
     mkdir -p /home/coder/.cache/openspec && \
