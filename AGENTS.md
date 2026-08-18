@@ -190,4 +190,6 @@ env.aws_bedrock=AWS_BEARER_TOKEN_BEDROCK
 | `~/.cache/oh-my-opencode/` | `/home/coder/.cache/oh-my-opencode/` | rw | Plugin cache |
 | `~/.cache/openspec/` | `/home/coder/.cache/openspec/` | rw | OpenSpec cache (when enabled) |
 | `~/.config/openspec/` | `/home/coder/.config/openspec/` | ro | OpenSpec config (when enabled) |
+| `~/.claude/` | `/home/coder/.claude/` | ro | Claude Code compat: CLAUDE.md rules, skills/ |
+| `~/.agents/` | `/home/coder/.agents/` | ro | Agent-compatible skills (skills/<name>/SKILL.md) |
 | `/var/run/docker.sock` | `/var/run/docker.sock` | rw | Docker socket |

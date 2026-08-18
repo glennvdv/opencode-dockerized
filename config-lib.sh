@@ -297,6 +297,18 @@ build_standard_volume_args() {
         VOLUME_ARGS+=(-v "$HOME/.npmrc:/home/coder/.npmrc:ro")
     fi
 
+    # Claude Code compatibility directory (optional)
+    # Provides fallback CLAUDE.md rules and ~/.claude/skills/ when no opencode equivalents exist
+    if [ -d "$HOME/.claude" ]; then
+        VOLUME_ARGS+=(-v "$HOME/.claude:/home/coder/.claude:ro")
+    fi
+
+    # Agent-compatible skills directory (optional)
+    # OpenCode reads skills from ~/.agents/skills/<name>/SKILL.md
+    if [ -d "$HOME/.agents" ]; then
+        VOLUME_ARGS+=(-v "$HOME/.agents:/home/coder/.agents:ro")
+    fi
+
     # Docker socket (optional, for Docker-in-Docker operations)
     if [ "$include_docker_socket" = true ] && [ -S /var/run/docker.sock ]; then
         VOLUME_ARGS+=(-v /var/run/docker.sock:/var/run/docker.sock)
