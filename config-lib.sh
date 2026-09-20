@@ -95,6 +95,7 @@ compute_container_path() {
 # Ensure all required OpenCode directories exist on host
 ensure_opencode_dirs() {
     mkdir -p "$HOME/.local/share/opencode" 2>/dev/null || true
+    mkdir -p "$HOME/.local/state/opencode" 2>/dev/null || true
     mkdir -p "$HOME/.cache/opencode" 2>/dev/null || true
     mkdir -p "$HOME/.cache/oh-my-opencode" 2>/dev/null || true
     mkdir -p "$HOME/.config/opencode" 2>/dev/null || true
@@ -262,6 +263,11 @@ build_standard_volume_args() {
     else
         config_warning "OpenCode data directory not found at $HOME/.local/share/opencode"
         config_info "You'll need to run 'opencode auth login' inside the container"
+    fi
+
+    # OpenCode state directory (TUI preferences, UI state, etc.)  (read-write)
+    if [ -d "$HOME/.local/state/opencode" ]; then
+        VOLUME_ARGS+=(-v "$HOME/.local/state/opencode:/home/coder/.local/state/opencode")
     fi
 
     # OpenCode provider package cache (improves startup time and prevents API errors)

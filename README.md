@@ -235,6 +235,7 @@ TERM=xterm-256color
 | `$PROJECT_DIR` | `$PROJECT_DIR` (with `$HOME` stripped) | read-write | Your project files |
 | `~/.config/opencode/` | `/home/coder/.config/opencode/` | read-only | OpenCode & oh-my-opencode config, skills, commands, agents |
 | `~/.local/share/opencode/` | `/home/coder/.local/share/opencode/` | read-write | Auth, logs, sessions, storage |
+| `~/.local/state/opencode/` | `/home/coder/.local/state/opencode/` | read-write | TUI preferences, UI state |
 | `~/.cache/opencode/` | `/home/coder/.cache/opencode/` | read-write | Provider package cache |
 | `~/.cache/oh-my-opencode/` | `/home/coder/.cache/oh-my-opencode/` | read-write | Oh My OpenCode cache |
 | `~/.gradle/gradle.properties` | `/home/coder/.gradle/gradle.properties` | read-only | Gradle config (optional) |

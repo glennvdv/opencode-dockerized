@@ -81,6 +81,10 @@ check_config() {
         missing_files+=("$HOME/.local/share/opencode/")
     fi
 
+    if [ ! -d "$HOME/.local/state/opencode" ]; then
+        missing_files+=("$HOME/.local/state/opencode/")
+    fi
+
     if [ ${#missing_files[@]} -gt 0 ]; then
         print_warning "Some OpenCode configuration files are missing:"
         for file in "${missing_files[@]}"; do

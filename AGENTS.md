@@ -186,6 +186,7 @@ env.aws_bedrock=AWS_BEARER_TOKEN_BEDROCK
 | `$PROJECT_DIR` | `$PROJECT_DIR` (with `$HOME` stripped) | rw | Project files |
 | `~/.config/opencode/` | `/home/coder/.config/opencode/` | ro | Config, skills, agents |
 | `~/.local/share/opencode/` | `/home/coder/.local/share/opencode/` | rw | Auth, sessions |
+| `~/.local/state/opencode/` | `/home/coder/.local/state/opencode` | rw | TUI preferences, UI state |
 | `~/.cache/opencode/` | `/home/coder/.cache/opencode/` | rw | Provider cache |
 | `~/.cache/oh-my-opencode/` | `/home/coder/.cache/oh-my-opencode/` | rw | Plugin cache |
 | `~/.cache/openspec/` | `/home/coder/.cache/openspec/` | rw | OpenSpec cache (when enabled) |
