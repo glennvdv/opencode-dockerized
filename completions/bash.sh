@@ -8,10 +8,10 @@ _opencode_dockerized() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="run auth build update version config clean help --help -h"
+    opts="run auth models exec mcp plugin stats debug build update version config clean help --help -h"
 
     case "${prev}" in
-        run)
+        run|models)
             # Complete directory paths for run command
             mapfile -t COMPREPLY < <(compgen -d -- "${cur}")
             return 0
@@ -19,6 +19,18 @@ _opencode_dockerized() {
         config)
             # Complete config subcommands
             mapfile -t COMPREPLY < <(compgen -W "show edit path" -- "${cur}")
+            return 0
+            ;;
+        mcp)
+            mapfile -t COMPREPLY < <(compgen -W "list add auth logout" -- "${cur}")
+            return 0
+            ;;
+        plugin)
+            mapfile -t COMPREPLY < <(compgen -W "list add check update remove" -- "${cur}")
+            return 0
+            ;;
+        debug)
+            mapfile -t COMPREPLY < <(compgen -W "paths config agents" -- "${cur}")
             return 0
             ;;
         *)

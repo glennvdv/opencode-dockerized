@@ -79,38 +79,68 @@ check_config() {
     ensure_opencode_dirs
 }
 
-# Function to run OpenCode authentication
-run_auth() {
+# Run a one-off OpenCode CLI command inside the container.
+# The project directory is mounted so project-level configuration applies.
+# Usage: run_cli_command <name_suffix> <project_dir> <config_writable> <docker_socket> <opencode_args...>
+run_cli_command() {
+    local name_suffix="$1"
+    local project_dir="$2"
+    local config_writable="$3"
+    local docker_socket="$4"
+    shift 4
+
+    if [ -n "$project_dir" ]; then
+        if [ ! -d "$project_dir" ]; then
+            print_error "Project directory does not exist: $project_dir"
+            exit 1
+        fi
+        project_dir="$(cd "$project_dir" && pwd)"
+    fi
+
     check_image "$IMAGE_NAME" || exit 1
-
-    print_info "Running OpenCode authentication..."
-
-    # Ensure OpenCode directories exist
     ensure_opencode_dirs
 
-    # Parse custom config and build docker arguments
     parse_config
     build_mount_args
     build_env_args
     build_common_docker_args
+    build_standard_volume_args "$project_dir" "$docker_socket" "$config_writable"
 
-    # Build volume mount arguments for auth
-    local -a auth_volume_args=(
-        -v "$HOME/.local/share/opencode:/home/coder/.local/share/opencode"
-        -v "$HOME/.cache/opencode:/home/coder/.cache/opencode"
-        # Config directory read-write for writing opencode.json during auth
-        -v "$HOME/.config/opencode:/home/coder/.config/opencode"
+    # Allocate a TTY only when attached to one, so the command stays pipeable
+    local -a tty_args=(-i)
+    [ -t 0 ] && [ -t 1 ] && tty_args=(-it)
+
+    local -a workdir_args=()
+    [ -n "$CONTAINER_WORKDIR" ] && workdir_args=(--workdir "$CONTAINER_WORKDIR")
+
+    local -a docker_cmd=(
+        docker run "${tty_args[@]}"
+        --name "opencode-${name_suffix}-$$"
+        "${workdir_args[@]}"
+        "${DOCKER_COMMON_ARGS[@]}"
+        "${VOLUME_ARGS[@]}"
+        "${GIT_WORKTREE_ARGS[@]}"
+        "${DOCKER_MOUNT_ARGS[@]}"
+        "${DOCKER_ENV_ARGS[@]}"
+        "$IMAGE_NAME"
+        "$@"
     )
 
-    # Run OpenCode auth login in Docker
-    if ! docker run -it \
-        --name "opencode-auth-$$" \
-        "${DOCKER_COMMON_ARGS[@]}" \
-        "${auth_volume_args[@]}" \
-        "${DOCKER_MOUNT_ARGS[@]}" \
-        "${DOCKER_ENV_ARGS[@]}" \
-        "$IMAGE_NAME" \
-        opencode auth login; then
+    if [ "${DRY_RUN:-false}" = true ]; then
+        print_info "Dry run — would execute:"
+        echo "${docker_cmd[*]}"
+        return 0
+    fi
+
+    "${docker_cmd[@]}"
+}
+
+# Function to run OpenCode authentication
+run_auth() {
+    print_info "Running OpenCode authentication..."
+
+    # Config directory is writable so auth can persist opencode.json
+    if ! run_cli_command auth "" true false opencode auth login --standalone; then
         print_error "Authentication failed"
         exit 1
     fi
@@ -154,6 +184,8 @@ run_opencode() {
 
     # Build the full docker run command as an array
     # CONTAINER_WORKDIR is set by build_standard_volume_args (host path with $HOME stripped)
+    # --standalone gives the container its own private server: with --network host the
+    # client would otherwise attach to a shared server running outside the sandbox.
     local -a docker_cmd=(
         docker run -it
         --name "$container_name"
@@ -165,7 +197,7 @@ run_opencode() {
         "${DOCKER_MOUNT_ARGS[@]}"
         "${DOCKER_ENV_ARGS[@]}"
         "$IMAGE_NAME"
-        opencode
+        opencode --standalone
     )
 
     if [ "$dry_run" = true ]; then
@@ -193,7 +225,7 @@ update_opencode() {
 
     # Show current version before update
     print_info "Current OpenCode version:"
-    docker run --rm --entrypoint bash "$IMAGE_NAME" -c "source \$NVM_DIR/nvm.sh && npm list -g opencode-ai --depth=0" 2>/dev/null || true
+    docker run --rm --entrypoint bash "$IMAGE_NAME" -c "source \$NVM_DIR/nvm.sh && npm list -g @opencode/cli --depth=0" 2>/dev/null || true
 
     # Rebuild with cache-busting to force fresh npm install
     print_info "Rebuilding image with latest OpenCode..."
@@ -201,9 +233,52 @@ update_opencode() {
 
     # Show new version after update
     print_info "Updated OpenCode version:"
-    docker run --rm --entrypoint bash "$IMAGE_NAME" -c "source \$NVM_DIR/nvm.sh && npm list -g opencode-ai --depth=0" 2>/dev/null || true
+    docker run --rm --entrypoint bash "$IMAGE_NAME" -c "source \$NVM_DIR/nvm.sh && npm list -g @opencode/cli --depth=0" 2>/dev/null || true
 
     print_success "OpenCode updated successfully"
+}
+
+# Function to list the models available to the configured providers
+list_models() {
+    run_cli_command models "${1:-$(pwd)}" false false opencode models --standalone
+}
+
+# Function to show usage statistics
+show_stats() {
+    run_cli_command stats "$(pwd)" false false opencode stats --standalone "$@"
+}
+
+# Function to manage MCP servers (list, add, auth, logout)
+manage_mcp() {
+    # 'add' persists to the global config, so the config mount must be writable
+    local config_writable=false
+    [ "${1:-list}" = "add" ] && config_writable=true
+    run_cli_command mcp "$(pwd)" "$config_writable" false opencode mcp "${@:-list}"
+}
+
+# Function to manage plugins (list, add, check, update, remove)
+manage_plugins() {
+    # add/update/remove persist to the global config, so it must be writable
+    local config_writable=false
+    case "${1:-list}" in
+        add|update|remove) config_writable=true ;;
+    esac
+    run_cli_command plugin "$(pwd)" "$config_writable" false opencode plugin "${@:-list}"
+}
+
+# Function to run OpenCode debugging tools (agents, config, paths)
+run_debug() {
+    run_cli_command debug "$(pwd)" false false opencode debug "${@:-paths}"
+}
+
+# Function to run a non-interactive prompt and print the result
+exec_prompt() {
+    if [ $# -eq 0 ]; then
+        print_error "A message is required: $0 exec \"<message>\" [OPTIONS]"
+        exit 1
+    fi
+    # Docker socket is mounted because the agent executes tools here, as in 'run'
+    run_cli_command exec "$(pwd)" false true opencode run --standalone "$@"
 }
 
 # Function to clean up Docker image
@@ -259,6 +334,12 @@ Usage: $0 [COMMAND] [OPTIONS]
 Commands:
     run [DIR]           Run OpenCode in Docker (default: current directory)
     auth                Run OpenCode authentication (opencode auth login)
+    models [DIR]        List models available to the configured providers
+    exec MSG [OPTS]     Run a non-interactive prompt (opencode run)
+    mcp [ARGS]          Manage MCP servers (list|add|auth|logout, default: list)
+    plugin [ARGS]       Manage plugins (list|add|check|update|remove, default: list)
+    stats [OPTS]        Show usage statistics
+    debug [ARGS]        Debugging tools (paths|config|agents, default: paths)
     build               Build the Docker image
     update              Update OpenCode to the latest version
     version             Show OpenCode version in the container
@@ -273,6 +354,12 @@ Examples:
     $0 run                          # Run in current directory
     $0 run /path/to/project         # Run in specific directory
     $0 auth                         # Authenticate with your LLM provider
+    $0 models                       # List available models
+    $0 exec "Explain this repo"     # Non-interactive prompt
+    $0 mcp list                     # Show MCP servers and their status
+    $0 plugin list                  # Show loaded plugins
+    $0 stats --days 7               # Usage for the last 7 days
+    $0 debug config                 # Show configuration sources
     $0 build                        # Build the Docker image
     $0 update                       # Update OpenCode to latest version
     $0 config show                  # Show current configuration
@@ -320,6 +407,24 @@ main() {
             ;;
         auth)
             run_auth
+            ;;
+        models)
+            list_models "$@"
+            ;;
+        exec)
+            exec_prompt "$@"
+            ;;
+        mcp)
+            manage_mcp "$@"
+            ;;
+        plugin)
+            manage_plugins "$@"
+            ;;
+        stats)
+            show_stats "$@"
+            ;;
+        debug)
+            run_debug "$@"
             ;;
         build)
             build_image

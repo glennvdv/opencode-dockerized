@@ -91,10 +91,11 @@ ENV BUN_INSTALL="/home/coder/.bun"
 ENV PATH="$BUN_INSTALL/bin:$NVM_DIR/default:/home/coder/.local/bin:/home/coder/.sdkman/candidates/java/current/bin:$PATH"
 ENV JAVA_HOME="/home/coder/.sdkman/candidates/java/current"
 
-# Install OpenCode globally
+# Install OpenCode V2 globally
+# The package postinstall selects the native binary for the platform
 # ARG OPENCODE_BUILD_TIME is only passed during 'update' to bust cache
 ARG OPENCODE_BUILD_TIME=0
-RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest"
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g @opencode/cli@latest"
 
 # Switch back to root for entrypoint setup
 USER root
@@ -102,6 +103,7 @@ USER root
 # Create necessary directories with proper permissions
 RUN mkdir -p /home/coder/.config/opencode && \
     mkdir -p /home/coder/.local/share/opencode && \
+    mkdir -p /home/coder/.local/state/opencode && \
     mkdir -p /home/coder/.cache/opencode && \
     mkdir -p /home/coder/.cache/oh-my-opencode && \
     mkdir -p /home/coder/.gradle && \
