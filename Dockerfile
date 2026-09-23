@@ -91,23 +91,19 @@ ENV BUN_INSTALL="/home/coder/.bun"
 ENV PATH="$BUN_INSTALL/bin:$NVM_DIR/default:/home/coder/.local/bin:/home/coder/.sdkman/candidates/java/current/bin:$PATH"
 ENV JAVA_HOME="/home/coder/.sdkman/candidates/java/current"
 
-# Install OpenCode and OpenSpec globally
-# OpenSpec: Spec-driven development (SDD) for AI coding assistants
-# See: https://github.com/Fission-AI/OpenSpec/
+# Install OpenCode globally
 # ARG OPENCODE_BUILD_TIME is only passed during 'update' to bust cache
 ARG OPENCODE_BUILD_TIME=0
-RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest @fission-ai/openspec@latest"
+RUN bash -c "source $NVM_DIR/nvm.sh && npm install -g opencode-ai@latest"
 
 # Switch back to root for entrypoint setup
 USER root
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /home/coder/.config/opencode && \
-    mkdir -p /home/coder/.config/openspec && \
     mkdir -p /home/coder/.local/share/opencode && \
     mkdir -p /home/coder/.cache/opencode && \
     mkdir -p /home/coder/.cache/oh-my-opencode && \
-    mkdir -p /home/coder/.cache/openspec && \
     mkdir -p /home/coder/.gradle && \
     mkdir -p /home/coder/.npm && \
     mkdir -p /home/coder/.m2 && \

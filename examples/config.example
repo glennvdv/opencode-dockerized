@@ -27,13 +27,6 @@
 #
 # setting.ssh_agent_support=true
 
-# OpenSpec Support (spec-driven development for AI coding assistants)
-# When enabled, OpenSpec is available inside the container for spec-driven workflows.
-# Run 'openspec init' in your project to get started.
-# See: https://github.com/Fission-AI/OpenSpec/
-#
-# setting.openspec_support=true
-
 # ============================================
 # Custom Volume Mounts
 # ============================================
