@@ -10,6 +10,36 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 IMAGE_NAME="opencode-dockerized:latest"
 
+# Seconds to wait for the in-container OpenCode server to become ready
+PRIVATE_SERVER_TIMEOUT=120
+
+# Runs an opencode command against a private server inside the container.
+# V2's --standalone queries before providers finish loading (empty 'models')
+# and gives up when a large session database slows startup ('stats'),
+# so readiness is awaited explicitly before the command runs.
+# Args: <ready_path> <ready_pattern> <timeout_seconds> <opencode_args...>
+# shellcheck disable=SC2016 # expanded inside the container, not here
+PRIVATE_SERVER_SCRIPT='
+ready_path="$1"; ready_pattern="$2"; timeout="$3"; shift 3
+OPENCODE_SERVER_PASSWORD=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d " \n")
+export OPENCODE_SERVER_PASSWORD
+log=$(mktemp)
+opencode serve --hostname 127.0.0.1 --port 0 >"$log" 2>&1 &
+server_pid=$!
+trap "kill $server_pid 2>/dev/null" EXIT
+for _ in $(seq "$timeout"); do
+    url=$(grep -oE "http://127\.0\.0\.1:[0-9]+" "$log" | head -n 1)
+    if [ -n "$url" ] && curl -sf -u "opencode:$OPENCODE_SERVER_PASSWORD" "$url$ready_path" | grep -q "$ready_pattern"; then
+        opencode "$@" --server "$url"
+        exit
+    fi
+    sleep 1
+done
+echo "OpenCode server was not ready after ${timeout}s" >&2
+cat "$log" >&2
+exit 1
+'
+
 # Colors for output (defined before sourcing config-lib so it picks them up)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -242,37 +272,56 @@ update_opencode() {
     print_success "OpenCode updated successfully"
 }
 
+# Run an opencode command against a private server once <ready_path> matches <ready_pattern>
+# Usage: run_with_private_server <name_suffix> <project_dir> <ready_path> <ready_pattern> <opencode_args...>
+run_with_private_server() {
+    local name_suffix="$1"
+    local project_dir="$2"
+    local ready_path="$3"
+    local ready_pattern="$4"
+    shift 4
+    run_cli_command "$name_suffix" "$project_dir" false false \
+        bash -c "$PRIVATE_SERVER_SCRIPT" private-server \
+        "$ready_path" "$ready_pattern" "$PRIVATE_SERVER_TIMEOUT" "$@"
+}
+
 # Function to list the models available to the configured providers
 list_models() {
-    run_cli_command models "${1:-$(pwd)}" false false opencode models --standalone
+    run_with_private_server models "${1:-$(pwd)}" /api/model '"id"' models
 }
 
 # Function to show usage statistics
 show_stats() {
-    run_cli_command stats "$(pwd)" false false opencode stats --standalone "$@"
+    run_with_private_server stats "$(pwd)" /health . stats "$@"
 }
 
 # Function to manage MCP servers (list, add, auth, logout)
 manage_mcp() {
+    local subcommand="${1:-list}"
+    shift || true
     # 'add' persists to the global config, so the config mount must be writable
     local config_writable=false
-    [ "${1:-list}" = "add" ] && config_writable=true
-    run_cli_command mcp "$(pwd)" "$config_writable" false opencode mcp "${@:-list}"
+    [ "$subcommand" = "add" ] && config_writable=true
+    run_cli_command mcp "$(pwd)" "$config_writable" false opencode mcp "$subcommand" --standalone "$@"
 }
 
 # Function to manage plugins (list, add, check, update, remove)
 manage_plugins() {
+    local subcommand="${1:-list}"
+    shift || true
     # add/update/remove persist to the global config, so it must be writable
     local config_writable=false
-    case "${1:-list}" in
+    case "$subcommand" in
         add|update|remove) config_writable=true ;;
     esac
-    run_cli_command plugin "$(pwd)" "$config_writable" false opencode plugin "${@:-list}"
+    run_cli_command plugin "$(pwd)" "$config_writable" false opencode plugin "$subcommand" --standalone "$@"
 }
 
 # Function to run OpenCode debugging tools (agents, config, paths)
 run_debug() {
-    run_cli_command debug "$(pwd)" false false opencode debug "${@:-paths}"
+    local subcommand="${1:-paths}"
+    shift || true
+    run_cli_command debug "$(pwd)" false false opencode debug "$subcommand" --standalone "$@"
 }
 
 # Function to run a non-interactive prompt and print the result

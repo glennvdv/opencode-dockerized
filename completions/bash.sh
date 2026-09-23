@@ -37,6 +37,11 @@ _opencode_dockerized() {
             ;;
     esac
 
+    if [ "${COMP_WORDS[1]}" = "stats" ] && [ "${COMP_CWORD}" -gt 1 ]; then
+        mapfile -t COMPREPLY < <(compgen -W "--days --year --all --project --models --tools --cost --full --limit --json" -- "${cur}")
+        return 0
+    fi
+
     mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     return 0
 }

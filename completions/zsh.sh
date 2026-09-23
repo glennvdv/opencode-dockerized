@@ -45,6 +45,19 @@ _opencode_dockerized() {
                 debug)
                     _values 'debug subcommand' paths config agents
                     ;;
+                stats)
+                    _arguments \
+                        '--days[Show the last N days; 0 means today]:days:' \
+                        '--year[Show a calendar year]:year:' \
+                        '--all[Show lifetime statistics]' \
+                        '--project[Filter by project ID, or "." for the current project]:project:' \
+                        '--models[Show model usage]' \
+                        '--tools[Show tool reliability]' \
+                        '--cost[Show cost and token details]' \
+                        '--full[Show every detailed section]' \
+                        '--limit[Number of rows in detailed sections]:limit:' \
+                        '--json[Output statistics as JSON]'
+                    ;;
                 config)
                     local -a config_cmds
                     config_cmds=(
