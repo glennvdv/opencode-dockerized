@@ -302,7 +302,7 @@ manage_mcp() {
     # 'add' persists to the global config, so the config mount must be writable
     local config_writable=false
     [ "$subcommand" = "add" ] && config_writable=true
-    run_cli_command mcp "$(pwd)" "$config_writable" false opencode mcp "$subcommand" --standalone "$@"
+    run_cli_command mcp "$(pwd)" "$config_writable" false opencode mcp "$subcommand" "$@"
 }
 
 # Function to manage plugins (list, add, check, update, remove)
@@ -314,14 +314,14 @@ manage_plugins() {
     case "$subcommand" in
         add|update|remove) config_writable=true ;;
     esac
-    run_cli_command plugin "$(pwd)" "$config_writable" false opencode plugin "$subcommand" --standalone "$@"
+    run_cli_command plugin "$(pwd)" "$config_writable" false opencode plugin "$subcommand" "$@"
 }
 
 # Function to run OpenCode debugging tools (agents, config, paths)
 run_debug() {
     local subcommand="${1:-paths}"
     shift || true
-    run_cli_command debug "$(pwd)" false false opencode debug "$subcommand" --standalone "$@"
+    run_cli_command debug "$(pwd)" false false opencode debug "$subcommand" "$@"
 }
 
 # Function to run a non-interactive prompt and print the result
