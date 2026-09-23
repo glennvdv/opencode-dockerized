@@ -216,6 +216,18 @@ build_common_docker_args() {
         -e "HOST_GID=$(id -g)"
         -e "TERM=${TERM:-xterm-256color}"
     )
+
+    # Pass terminal identification variables so applications inside the container
+    # can detect the host terminal and use its capabilities correctly.
+    # Required for kitty OSC 99 terminal-mediated desktop notifications, true-color
+    # rendering, and other terminal-specific features. All are conditional so they
+    # have no effect on non-kitty terminals.
+    local term_var
+    for term_var in TERM_PROGRAM TERM_PROGRAM_VERSION KITTY_WINDOW_ID COLORTERM; do
+        if [ -n "${!term_var}" ]; then
+            DOCKER_COMMON_ARGS+=(-e "$term_var=${!term_var}")
+        fi
+    done
 }
 
 # Build standard volume mount arguments for OpenCode directories
